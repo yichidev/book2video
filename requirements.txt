@@ -1,0 +1,28 @@
+# Audio / Video
+gtts
+moviepy==1.0.3
+pydub
+pillow
+
+# TTS (premium)
+openai>=1.0.0
+
+# Translation
+deepl
+tqdm
+
+# PDF extraction
+pymupdf
+pdfplumber
+
+# Config & Storage
+python-dotenv
+pymongo
+certifi
+
+# Anki export
+genanki
+requests
+
+# Ebook mode
+pysbd

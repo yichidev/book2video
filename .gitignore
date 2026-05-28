@@ -1,0 +1,32 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Environment / secrets
+.env
+*.env
+
+# Output (generated files — large, not for version control)
+output/
+tests/output/
+
+# Input books (PDFs are large and may be copyrighted)
+input/books/*
+!input/books/.gitkeep
+
+# Personal/proprietary assets (cover images, background music)
+input/assets/cover-*.png
+input/assets/background-music-*.mp3
+input/assets/preview_*.png
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
