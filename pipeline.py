@@ -2,34 +2,27 @@
 book2video pipeline
 
 VOCAB MODE (default):
-  # Full pipeline (extract → translate → video)
-  python pipeline.py --book A1 --collection A1_A --pdf A1.pdf --alphabet A
-
   # Individual stages
-  python pipeline.py --book A1 --collection A1_A --pdf A1.pdf --alphabet A --stage extract
-  python pipeline.py --collection A1_A --stage translate
-  python pipeline.py --collection A1_A --stage video
-  python pipeline.py --collection A1_A --stage video --tts gtts
+  python pipeline.py --collection A1_A --pdf input/books/A1.pdf --alphabet A --stage extract
+  python pipeline.py --collection A1_A_1 --stage translate
+  python pipeline.py --collection A1_A_1 --stage audio-and-video
+  python pipeline.py --collection A1_A_1 --stage audio-and-video --tts gtts
+  python pipeline.py --collection A1_A_1 --stage anki [--anki-connect]
+  python pipeline.py --collection A1_A_1 --stage quizlet
+  python pipeline.py --collection A1_A_1 --stage describe
 
   # Different target language
-  python pipeline.py --book B1 --collection B1_A --pdf B1.pdf --alphabet A --source-lang de --target-lang zh
-
+  python pipeline.py --collection B1_A --pdf input/books/B1.pdf --alphabet A --source-lang de --target-lang zh --stage extract
 
 EBOOK MODE:
-  # Extract sentences from PDF and save to MongoDB
-  python pipeline.py --mode ebook --book mynovel --pdf novel.pdf --stage extract
-
-  # Translate all sentences
+  # Individual stages
+  python pipeline.py --mode ebook --book mynovel --pdf input/books/novel.pdf --stage extract
   python pipeline.py --mode ebook --book mynovel --stage translate
-
-  # Generate audio for all chapters
   python pipeline.py --mode ebook --book mynovel --stage audio
-
-  # Generate subtitle videos for all chapters
   python pipeline.py --mode ebook --book mynovel --stage video
 
-  # Different languages
-  python pipeline.py --mode ebook --book mynovel --pdf novel.pdf --source-lang de --target-lang en --stage extract
+  # Full pipeline at once
+  python pipeline.py --mode ebook --book mynovel --pdf input/books/novel.pdf
 """
 
 import argparse
