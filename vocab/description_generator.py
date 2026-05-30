@@ -32,12 +32,13 @@ _SOURCE_PDF_URL = "https://www.goethe.de/pro/relaunch/prf/de/A1_SD1_Wortliste_02
 # Transparency note — describes exactly what is and isn't AI in the pipeline
 _HOW_MADE = f"""\
 🛠 How this video was made:
+• My open-source code used to create this video: https://github.com/yichidev/book2video
 • Vocabulary list: from the official Goethe-Zertifikat A1 DEUTSCH WORTLISTE ({_SOURCE_PDF_URL})
 • Extraction & structuring: OpenAI GPT reads the PDF 
 • Translation: DeepL
 • Voice narration: OpenAI text-to-speech
 • Video editing & timing: automated (Python / MoviePy)
-• Human review: vocabulary list and translations are manually proofread before publishing\
+• Human review: vocabulary list and translations are manually proofread before publishing
 """
 # ---------------------------------------------------------------------------
 
