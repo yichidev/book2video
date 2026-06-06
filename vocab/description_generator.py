@@ -3,7 +3,7 @@ Generate a YouTube/social media description for a vocabulary video.
 
 Output (description.txt, written next to summary.txt):
 
-    Memorize German vocabulary for A1! (with English translation)
+    Memorize German vocabulary for A1 (with English translation)
 
     Vocabulary comes from the A1 DEUTSCH WORTLISTE:
     https://...
@@ -55,25 +55,6 @@ def _lang_name(code: str) -> str:
     return _LANG_NAMES.get(code.lower(), code.upper())
 
 
-def _rule_based_summary(word_pairs: list[str], source_lang: str, book: str, target_lang: str) -> str:
-    """Build a plain description line from the word count and alphabet letter."""
-    src_name = _lang_name(source_lang)
-    tgt_name = _lang_name(target_lang)
-    count = len(word_pairs)
-    # Infer the letter from the first word pair (first char of first source word, skip articles)
-    first_source = word_pairs[0].split(" · ")[0] if word_pairs else ""
-    # Strip leading article to get the bare word
-    for art in ("der ", "die ", "das ", "der/die "):
-        if first_source.lower().startswith(art):
-            first_source = first_source[len(art):]
-            break
-    letter = first_source[0].upper() if first_source else ""
-    letter_part = f" (letter {letter})" if letter else ""
-    return (
-        f"{count} {src_name} words from the Goethe-Zertifikat {book} wordlist{letter_part}, "
-        f"with {tgt_name} translation."
-    )
-
 
 def generate_description(
     collection: str,
@@ -111,15 +92,20 @@ def generate_description(
     src_name = _lang_name(source_lang)
     tgt_name = _lang_name(target_lang)
 
+    # Infer the letter from the first word pair (strip leading article)
+    first_source = word_pairs[0].split(" · ")[0] if word_pairs else ""
+    for art in ("der ", "die ", "das ", "der/die "):
+        if first_source.lower().startswith(art):
+            first_source = first_source[len(art):]
+            break
+    letter = first_source[0].upper() if first_source else ""
+    letter_part = f" (letter {letter}; with {tgt_name} translation)" if letter else f" (with {tgt_name} translation)"
+
     # Header
     lines = [
-        f"Memorize {src_name} vocabulary for {book}! (with {tgt_name} translation)",
+        f"Memorize {src_name} vocabulary for {book}{letter_part}",
         "",
     ]
-
-    # Rule-based summary line
-    topic_summary = _rule_based_summary(word_pairs, source_lang, book, target_lang)
-    lines += [topic_summary, ""]
 
     # Transparency — how the video was made
     lines += [_HOW_MADE, ""]
@@ -134,7 +120,7 @@ def generate_description(
     ]
 
     # Word list (directly from summary.txt)
-    lines += ["All vocabularies in this video:", "---"] + word_pairs
+    lines += [f"{len(word_pairs)} German vocabularies in this video:", "---"] + word_pairs
 
     text_dir.mkdir(parents=True, exist_ok=True)
     out_path = text_dir / "description.txt"
