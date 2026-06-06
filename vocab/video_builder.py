@@ -257,12 +257,14 @@ def create_vocabulary_video(
 
     # --- Prepend cover intro (fade out → first vocab clip fades in) ---
     cover_prefix = collection.split("_")[0]
-    cover_path = Path(f"input/assets/cover-{cover_prefix}.png")
+    cover_path = Path("input/assets/background.png")   # clean background, no baked-in text
     if cover_path.exists() and clips:
+        from scripts.preview_cover import draw_cover_overlay
         with Image.open(cover_path) as _img:
-            cover_resized = _img.resize((config.VIDEO_WIDTH, config.VIDEO_HEIGHT), Image.LANCZOS)
-            cover_resized_path = image_dir / f"cover-{cover_prefix}-resized.png"
-            cover_resized.save(str(cover_resized_path))
+            cover_resized = _img.resize((config.VIDEO_WIDTH, config.VIDEO_HEIGHT), Image.LANCZOS).convert("RGBA")
+        cover_resized = draw_cover_overlay(cover_resized, collection, config.VIDEO_WIDTH, config.VIDEO_HEIGHT)
+        cover_resized_path = image_dir / f"cover-{cover_prefix}-resized.png"
+        cover_resized.convert("RGB").save(str(cover_resized_path))
         cover_clip = (
             ImageClip(str(cover_resized_path))
             .set_duration(3)
