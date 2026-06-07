@@ -103,7 +103,7 @@ def generate_description(
 
     # Header
     lines = [
-        f"Memorize {src_name} vocabulary for {book}{letter_part}",
+        f"Goethe {src_name} vocabulary for {book}{letter_part}",
         "",
     ]
 
@@ -112,7 +112,7 @@ def generate_description(
 
     # Practice resources & channel
     lines += [
-        "📚 Resources for practice:",
+        "📚 Resources for practice (whole collection of A1 vocabulary):",
         f"Quizlet: {_QUIZLET_URL}",
         f"Anki: {_ANKI_URL}",
         f"YouTube: {_YOUTUBE_URL}",
