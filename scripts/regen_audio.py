@@ -15,6 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from services.tts import generate_audio, generate_vocab_audio
+from vocab.video_builder import _concatenate_audios
 
 
 def regen_audio(collection: str, lemma: str) -> None:
@@ -42,6 +43,9 @@ def regen_audio(collection: str, lemma: str) -> None:
     generate_audio(entry["target_word"], audio_dir / f"{lemma}_target_word.mp3", lang="en", silent=1000)
     print(f"  ✓ target_word audio")
 
+    _concatenate_audios([audio_dir / f"{lemma}_source_word.mp3", audio_dir / f"{lemma}_target_word.mp3"], audio_dir, lemma)
+    print(f"  ✓ combined_audio")
+
     if entry.get("source_sentence") and entry.get("target_sentence"):
         print(f"  source_sentence : {entry['source_sentence']}")
         print(f"  target_sentence : {entry['target_sentence']}")
@@ -49,6 +53,9 @@ def regen_audio(collection: str, lemma: str) -> None:
         print(f"  ✓ source_sentence audio")
         generate_audio(entry["target_sentence"], audio_dir / f"{lemma}_target_sentence.mp3", lang="en")
         print(f"  ✓ target_sentence audio")
+
+        _concatenate_audios([audio_dir / f"{lemma}_source_sentence.mp3", audio_dir / f"{lemma}_target_sentence.mp3"], audio_dir, f"{lemma}_sentence")
+        print(f"  ✓ sentence_combined_audio")
 
     print(f"[done] Re-run the video pipeline with reuse_audio=True to rebuild the video.")
 

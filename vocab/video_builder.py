@@ -58,10 +58,15 @@ def _wrap_text(text: str, width: int, font_size: int):
     return is_cut, "\n".join(wrapped)
 
 
+_CONCAT_GAP_MS = 100  # silence between source and target audio to prevent MP3 frame-boundary artifacts
+
+
 def _concatenate_audios(audio_files: list, output_path: Path, output_filename: str) -> Path:
     combined = AudioSegment.empty()
-    for f in audio_files:
+    for i, f in enumerate(audio_files):
         combined += AudioSegment.from_file(str(f))
+        if i < len(audio_files) - 1:
+            combined += AudioSegment.silent(_CONCAT_GAP_MS)
     out = output_path / f"{output_filename}_combined_audio.mp3"
     combined.export(str(out), format="mp3")
     return out
@@ -185,6 +190,45 @@ def _create_summary_clip(vocabulary: list[dict], duration: float):
     )
 
 
+def generate_vocabulary_audio(
+    vocabulary: list[dict],
+    collection: str,
+    source_lang: str = "de",
+    target_lang: str = "en",
+    tts_provider: str | None = None,
+    reuse_audio: bool = False,
+) -> None:
+    """Generate all TTS audio files for a collection. No video rendering."""
+    audio_dir = config.OUTPUT_DIR / collection / "audio"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+
+    for entry in vocabulary:
+        lemma = entry["file_name"]
+        source_word = entry["source_word"]
+        target_word = entry["target_word"]
+        source_sentence = entry.get("source_sentence", "")
+        target_sentence = entry.get("target_sentence", "")
+
+        if not target_word or not target_word.strip():
+            print(f"[skip] '{lemma}' has no translation, skipping")
+            continue
+
+        src_word_audio = audio_dir / f"{lemma}_source_word.mp3"
+        tgt_word_audio = audio_dir / f"{lemma}_target_word.mp3"
+        if not (reuse_audio and src_word_audio.exists()):
+            generate_vocab_audio(source_word, src_word_audio, lang=source_lang, silent=500, provider=tts_provider)
+        if not (reuse_audio and tgt_word_audio.exists()):
+            generate_audio(target_word, tgt_word_audio, lang=target_lang, silent=1000, provider=tts_provider)
+
+        if source_sentence and target_sentence:
+            src_sent_audio = audio_dir / f"{lemma}_source_sentence.mp3"
+            tgt_sent_audio = audio_dir / f"{lemma}_target_sentence.mp3"
+            if not (reuse_audio and src_sent_audio.exists()):
+                generate_audio(source_sentence, src_sent_audio, lang=source_lang, silent=500, provider=tts_provider)
+            if not (reuse_audio and tgt_sent_audio.exists()):
+                generate_audio(target_sentence, tgt_sent_audio, lang=target_lang, silent=1000, provider=tts_provider)
+
+
 def create_vocabulary_video(
     vocabulary: list[dict],
     collection: str,
@@ -202,6 +246,9 @@ def create_vocabulary_video(
     for d in (audio_dir, video_dir, image_dir):
         d.mkdir(parents=True, exist_ok=True)
 
+    # --- Generate audio (skips existing files if reuse_audio=True) ---
+    generate_vocabulary_audio(vocabulary, collection, source_lang, target_lang, tts_provider, reuse_audio)
+
     # --- Build one clip per vocabulary entry ---
     clips = []
 
@@ -213,16 +260,10 @@ def create_vocabulary_video(
         target_sentence = entry.get("target_sentence", "")
 
         if not target_word or not target_word.strip():
-            print(f"[skip] '{lemma}' has no translation, skipping")
             continue
 
-        # generate_vocab_audio handles "die Familie, Familien" → split into segments
         src_word_audio = audio_dir / f"{lemma}_source_word.mp3"
         tgt_word_audio = audio_dir / f"{lemma}_target_word.mp3"
-        if not (reuse_audio and src_word_audio.exists()):
-            generate_vocab_audio(source_word, src_word_audio, lang=source_lang, silent=500, provider=tts_provider)
-        if not (reuse_audio and tgt_word_audio.exists()):
-            generate_audio(target_word, tgt_word_audio, lang=target_lang, silent=1000, provider=tts_provider)
         combined_word_audio = _concatenate_audios([src_word_audio, tgt_word_audio], audio_dir, lemma)
         word_duration = get_audio_duration(combined_word_audio)
         de_word_duration = get_audio_duration(src_word_audio)
@@ -233,14 +274,9 @@ def create_vocabulary_video(
             img_dir=image_dir, background_image_path=None,
         ).set_audio(AudioFileClip(str(combined_word_audio)).set_duration(word_duration))
 
-        # Generate (or reuse) sentence audio and append sentence clip if available
         if source_sentence and target_sentence:
             src_sent_audio = audio_dir / f"{lemma}_source_sentence.mp3"
             tgt_sent_audio = audio_dir / f"{lemma}_target_sentence.mp3"
-            if not (reuse_audio and src_sent_audio.exists()):
-                generate_audio(source_sentence, src_sent_audio, lang=source_lang, silent=500, provider=tts_provider)
-            if not (reuse_audio and tgt_sent_audio.exists()):
-                generate_audio(target_sentence, tgt_sent_audio, lang=target_lang, silent=1000, provider=tts_provider)
             combined_sent_audio = _concatenate_audios([src_sent_audio, tgt_sent_audio], audio_dir, f"{lemma}_sentence")
             sent_duration = get_audio_duration(combined_sent_audio)
             de_sent_duration = get_audio_duration(src_sent_audio)

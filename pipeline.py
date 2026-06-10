@@ -5,8 +5,10 @@ VOCAB MODE (default):
   # Individual stages
   python pipeline.py --collection A1_A --pdf input/books/A1.pdf --alphabet A --stage extract
   python pipeline.py --collection A1_A_1 --stage translate
-  python pipeline.py --collection A1_A_1 --stage audio-and-video
-  python pipeline.py --collection A1_A_1 --stage audio-and-video --tts gtts
+  python pipeline.py --collection A1_A_1 --stage audio
+  python pipeline.py --collection A1_A_1 --stage audio --tts gtts
+  python pipeline.py --collection A1_A_1 --stage video
+  python pipeline.py --collection A1_A_1 --stage audio-and-video   # audio + video in one go
   python pipeline.py --collection A1_A_1 --stage anki [--anki-connect]
   python pipeline.py --collection A1_A_1 --stage quizlet
   python pipeline.py --collection A1_A_1 --stage describe
@@ -36,7 +38,7 @@ from vocab.extractor import file_search_merged, parse_to_vocabulary
 from services.translator import add_translation
 from vocab.exporters.anki import create_anki_deck, push_to_ankiconnect
 from vocab.exporters.quizlet import create_quizlet_export
-from vocab.video_builder import create_vocabulary_video
+from vocab.video_builder import create_vocabulary_video, generate_vocabulary_audio
 from storage.mongodb import (
     get_collection, save_collection, mark_video_generated,
     list_similar_collections, delete_collection,
@@ -227,19 +229,51 @@ def _pos_key(entry: dict) -> int:
     return 1  # adjective / other
 
 
+def run_audio(collection: str, tts_provider: str | None, source_lang: str, target_lang: str) -> None:
+    audio_dir = config.OUTPUT_DIR / collection / "audio"
+    reuse_audio = False
+    if audio_dir.exists():
+        audio_files = list(audio_dir.glob("*.mp3"))
+        if audio_files:
+            reuse_audio = _confirm(f"[audio] {len(audio_files)} audio files already exist for '{collection}'. Reuse existing audio?")
+
+    _sync_from_json(collection)
+    tts = tts_provider or config.DEFAULT_TTS_PROVIDER
+    print(f"[audio] Loading '{collection}' from MongoDB (tts={tts})")
+    entries = get_collection(collection)
+    if not entries:
+        print(f"[audio] No entries found for '{collection}'. Run extract + translate first.")
+        sys.exit(1)
+
+    _, src, tgt = _meta_from_entries(entries)
+    source_lang = source_lang or src
+    target_lang = target_lang or tgt
+
+    vocabulary = [
+        {
+            "file_name": e["lemma"],
+            "source_word": e["source_word"],
+            "target_word": e.get("target_word", ""),
+            "source_sentence": e.get("source_sentence", ""),
+            "target_sentence": e.get("target_sentence", ""),
+        }
+        for e in entries
+    ]
+    vocabulary.sort(key=_pos_key)
+    generate_vocabulary_audio(vocabulary, collection, source_lang=source_lang, target_lang=target_lang,
+                              tts_provider=tts, reuse_audio=reuse_audio)
+    print(f"\n[audio] Done. Audio files saved to output/{collection}/audio/")
+    print(f"[next] Listen to a few files to check quality.")
+    print(f"[next] To fix a broken word: python scripts/regen_audio.py {collection} <Lemma>")
+    print(f"[next] Then run: python pipeline.py --collection {collection} --stage video")
+
+
 def run_video(collection: str, tts_provider: str | None, source_lang: str, target_lang: str) -> None:
     video_path = config.OUTPUT_DIR / collection / "video" / "vocabulary_video.mp4"
     if video_path.exists():
         if _confirm(f"[video] Video already exists at {video_path}. Use existing?"):
             print(f"[video] Skipping — using existing video.")
             return
-
-    audio_dir = config.OUTPUT_DIR / collection / "audio"
-    reuse_audio = False
-    if audio_dir.exists():
-        audio_files = list(audio_dir.glob("*.mp3"))
-        if audio_files:
-            reuse_audio = _confirm(f"[video] {len(audio_files)} audio files already exist for '{collection}'. Reuse existing audio?")
 
     _sync_from_json(collection)
     tts = tts_provider or config.DEFAULT_TTS_PROVIDER
@@ -269,7 +303,7 @@ def run_video(collection: str, tts_provider: str | None, source_lang: str, targe
     create_vocabulary_video(
         vocabulary, collection,
         source_lang=source_lang, target_lang=target_lang,
-        tts_provider=tts, reuse_audio=reuse_audio,
+        tts_provider=tts, reuse_audio=True,
         book=book,
     )
     mark_video_generated(collection)
@@ -527,7 +561,9 @@ def main():
             "VOCAB MODE (default):\n"
             "  python pipeline.py --collection A1_A --pdf A1.pdf --alphabet A --stage extract\n"
             "  python pipeline.py --collection A1_A_1 --stage translate\n"
-            "  python pipeline.py --collection A1_A_1 --stage audio-and-video\n"
+            "  python pipeline.py --collection A1_A_1 --stage audio\n"
+            "  python pipeline.py --collection A1_A_1 --stage video\n"
+            "  python pipeline.py --collection A1_A_1 --stage audio-and-video   # audio + video in one go\n"
             "  python pipeline.py --collection A1_A_1 --stage anki [--anki-connect]\n"
             "  python pipeline.py --collection A1_A_1 --stage quizlet\n"
             "  python pipeline.py --collection A1_A_1 --stage describe\n\n"
@@ -546,7 +582,10 @@ def main():
     parser.add_argument("--collection", default="",
                         help="[vocab] Collection name including letter, e.g. A1_A or A1_A_1 (chunk). Used as MongoDB collection key and output folder name.")
     parser.add_argument("--stage", help=(
-        "[vocab] extract | translate | audio-and-video | anki | quizlet | describe | delete\n"
+        "[vocab] extract | translate | audio | video | audio-and-video | anki | quizlet | describe | delete\n"
+        "        audio: generate TTS files only (check quality before rendering)\n"
+        "        video: render video (reuses existing audio by default)\n"
+        "        audio-and-video: both in one go (no check prompt)\n"
         "[ebook] extract | translate | audio | video\n"
         "Omit to run the full pipeline end-to-end."
     ))
@@ -612,7 +651,14 @@ def main():
     if args.stage == "translate" or args.stage is None:
         run_translate(args.collection, args.source_lang, args.target_lang)
 
+    if args.stage == "audio":
+        run_audio(args.collection, args.tts, args.source_lang, args.target_lang)
+
+    if args.stage == "video":
+        run_video(args.collection, args.tts, args.source_lang, args.target_lang)
+
     if args.stage == "audio-and-video" or args.stage is None:
+        run_audio(args.collection, args.tts, args.source_lang, args.target_lang)
         run_video(args.collection, args.tts, args.source_lang, args.target_lang)
 
     if args.stage == "anki":

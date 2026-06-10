@@ -96,10 +96,17 @@ python pipeline.py --collection A1_A --pdf input/books/A1.pdf --alphabet A --sta
 # 2. Translate (German → English by default)
 python pipeline.py --collection A1_A_1 --stage translate
 
-# 3. Generate audio + render video
-python pipeline.py --collection A1_A_1 --stage audio-and-video
+# 3. Generate TTS audio (source + target word and sentence for each entry)
+python pipeline.py --collection A1_A_1 --stage audio
+# → Audio saved to output/A1_A_1/audio/
+# → Listen to spot-check quality. Fix broken words if needed:
+#   python scripts/regen_audio.py A1_A_1 --list          # see all lemmas
+#   python scripts/regen_audio.py A1_A_1 Abfahrt         # re-generate one word
 
-# 4. Export as Anki deck
+# 4. Render video (reuses audio generated in step 3)
+python pipeline.py --collection A1_A_1 --stage video
+
+# 5. Export as Anki deck
 python pipeline.py --collection A1_A_1 --stage anki
 
 # 5. Export as Quizlet import file
@@ -196,7 +203,7 @@ python pipeline.py --collection A1_A_1 --stage describe
 | `--collection` | Collection name, e.g. `A1_A_1` | All stages |
 | `--pdf` | Path to the PDF file | `extract` |
 | `--alphabet` | Letter to extract, e.g. `A` | `extract` |
-| `--stage` | `extract`, `translate`, `audio-and-video`, `anki`, `quizlet`, `describe`, `delete` | Optional (omit to run all) |
+| `--stage` | `extract`, `translate`, `audio`, `video`, `audio-and-video`, `anki`, `quizlet`, `describe`, `delete` | Optional (omit to run all) |
 | `--tts` | `openai` (default) or `gtts` | Optional |
 | `--anki-connect` | Push deck to Anki via AnkiConnect | `anki` |
 | `--source-lang` | Source language code (default: `de`) | Optional |
@@ -307,7 +314,7 @@ output/mynovel/
 
 ```bash
 # Use free Google TTS
-python pipeline.py --collection A1_A_1 --stage audio-and-video --tts gtts
+python pipeline.py --collection A1_A_1 --stage audio --tts gtts
 # Or set TTS_PROVIDER=gtts in .env
 ```
 
