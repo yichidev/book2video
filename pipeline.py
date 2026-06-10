@@ -216,7 +216,8 @@ def run_translate(collection: str, source_lang: str, target_lang: str) -> None:
     print(f"[translate] Updated {len(translated)} entries in MongoDB")
     _write_json(collection, get_collection(collection))
     print(f"\n[next] Review the translations in output/{collection}/text/{collection}_de_en.json")
-    print(f"[next] Then run: python pipeline.py --collection {collection} --stage audio-and-video")
+    print(f"[next] Then run: python pipeline.py --collection {collection} --stage audio")
+    print(f"[next]      then: python pipeline.py --collection {collection} --stage video")
 
 
 def _pos_key(entry: dict) -> int:
