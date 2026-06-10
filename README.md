@@ -174,6 +174,7 @@ The pipeline writes JSON files under `output/<collection>/text/`:
 
 Before each downstream stage, the pipeline prompts to sync your edits back into MongoDB:
 
+- IF YOU MODIFY LOCAL JSON; YOU MUST SAY YES TO SYNC
 ```
 [sync] Sync 28 entries from A1_A_1_de_en.json into MongoDB? [Y/n]:
 ```
