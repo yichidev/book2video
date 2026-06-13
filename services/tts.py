@@ -1,4 +1,5 @@
 import os
+import httpx
 from pathlib import Path
 from gtts import gTTS
 from pydub import AudioSegment
@@ -9,15 +10,6 @@ _OPENAI_INSTRUCTIONS = {
     "de": "Speak in clear, standard German (Hochdeutsch) with natural German pronunciation and rhythm. Avoid any English-influenced accent.",
     "en": "Speak in clear, natural American English.",
 }
-_openai_client = None
-
-
-def _openai():
-    global _openai_client
-    if _openai_client is None:
-        from openai import OpenAI
-        _openai_client = OpenAI(api_key=config.OPENAI_API_KEY)
-    return _openai_client
 
 
 def generate_audio(text: str, filename, lang: str = "de", silent: int = 0, provider: str | None = None) -> None:
@@ -55,14 +47,24 @@ def _generate_openai(segments: list, filename, lang: str, silent: int) -> None:
 
     for i, segment in enumerate(segments):
         temp_path = f"temp_tts_{i}_{Path(str(filename)).stem}.mp3"
-        response = _openai().audio.speech.create(
-            model="gpt-4o-mini-tts",
-            voice=voice,
-            input=segment,
-            instructions=_OPENAI_INSTRUCTIONS.get(lang, ""),
-            response_format="mp3",
+        response = httpx.post(
+            "https://api.openai.com/v1/audio/speech",
+            headers={
+                "Authorization": f"Bearer {config.OPENAI_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "gpt-4o-mini-tts",
+                "voice": voice,
+                "input": segment,
+                "instructions": _OPENAI_INSTRUCTIONS.get(lang, ""),
+                "response_format": "mp3",
+            },
+            timeout=60,
         )
-        response.stream_to_file(temp_path)
+        response.raise_for_status()
+        with open(temp_path, "wb") as f:
+            f.write(response.content)
         temp_files.append(temp_path)
 
     _combine_and_export(temp_files, filename, silent, normalize=True)
