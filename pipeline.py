@@ -8,7 +8,6 @@ VOCAB MODE (default):
   python pipeline.py --collection A1_A_1 --stage audio
   python pipeline.py --collection A1_A_1 --stage audio --tts gtts
   python pipeline.py --collection A1_A_1 --stage video
-  python pipeline.py --collection A1_A_1 --stage audio-and-video   # audio + video in one go
   python pipeline.py --collection A1_A_1 --stage anki [--anki-connect]
   python pipeline.py --collection A1_A_1 --stage quizlet
   python pipeline.py --collection A1_A_1 --stage describe
@@ -304,8 +303,7 @@ def run_video(collection: str, tts_provider: str | None, source_lang: str, targe
     create_vocabulary_video(
         vocabulary, collection,
         source_lang=source_lang, target_lang=target_lang,
-        tts_provider=tts, reuse_audio=True,
-        book=book,
+        tts_provider=tts, book=book,
     )
     mark_video_generated(collection)
     print(f"[video] Done: {video_path}")
@@ -564,7 +562,6 @@ def main():
             "  python pipeline.py --collection A1_A_1 --stage translate\n"
             "  python pipeline.py --collection A1_A_1 --stage audio\n"
             "  python pipeline.py --collection A1_A_1 --stage video\n"
-            "  python pipeline.py --collection A1_A_1 --stage audio-and-video   # audio + video in one go\n"
             "  python pipeline.py --collection A1_A_1 --stage anki [--anki-connect]\n"
             "  python pipeline.py --collection A1_A_1 --stage quizlet\n"
             "  python pipeline.py --collection A1_A_1 --stage describe\n\n"
@@ -583,10 +580,9 @@ def main():
     parser.add_argument("--collection", default="",
                         help="[vocab] Collection name including letter, e.g. A1_A or A1_A_1 (chunk). Used as MongoDB collection key and output folder name.")
     parser.add_argument("--stage", help=(
-        "[vocab] extract | translate | audio | video | audio-and-video | anki | quizlet | describe | delete\n"
+        "[vocab] extract | translate | audio | video | anki | quizlet | describe | delete\n"
         "        audio: generate TTS files only (check quality before rendering)\n"
-        "        video: render video (reuses existing audio by default)\n"
-        "        audio-and-video: both in one go (no check prompt)\n"
+        "        video: render video (reuses existing audio)\n"
         "[ebook] extract | translate | audio | video\n"
         "Omit to run the full pipeline end-to-end."
     ))
@@ -658,9 +654,6 @@ def main():
     if args.stage == "video":
         run_video(args.collection, args.tts, args.source_lang, args.target_lang)
 
-    if args.stage == "audio-and-video" or args.stage is None:
-        run_audio(args.collection, args.tts, args.source_lang, args.target_lang)
-        run_video(args.collection, args.tts, args.source_lang, args.target_lang)
 
     if args.stage == "anki":
         run_anki(args.collection, args.tts, args.anki_connect, args.source_lang, args.target_lang)

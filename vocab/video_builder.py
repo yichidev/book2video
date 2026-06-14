@@ -235,7 +235,6 @@ def create_vocabulary_video(
     source_lang: str = "de",
     target_lang: str = "en",
     tts_provider: str | None = None,
-    reuse_audio: bool = False,
     book: str = "",
 ) -> Path:
     output_dir = config.OUTPUT_DIR / collection
@@ -246,8 +245,8 @@ def create_vocabulary_video(
     for d in (audio_dir, video_dir, image_dir):
         d.mkdir(parents=True, exist_ok=True)
 
-    # --- Generate audio (skips existing files if reuse_audio=True) ---
-    generate_vocabulary_audio(vocabulary, collection, source_lang, target_lang, tts_provider, reuse_audio)
+    # --- Generate audio (skips existing files) ---
+    generate_vocabulary_audio(vocabulary, collection, source_lang, target_lang, tts_provider, reuse_audio=True)
 
     # --- Build one clip per vocabulary entry ---
     clips = []

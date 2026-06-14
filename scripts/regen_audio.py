@@ -49,15 +49,15 @@ def regen_audio(collection: str, lemma: str) -> None:
     if entry.get("source_sentence") and entry.get("target_sentence"):
         print(f"  source_sentence : {entry['source_sentence']}")
         print(f"  target_sentence : {entry['target_sentence']}")
-        generate_audio(entry["source_sentence"], audio_dir / f"{lemma}_source_sentence.mp3", lang="de")
+        generate_audio(entry["source_sentence"], audio_dir / f"{lemma}_source_sentence.mp3", lang="de", silent=500)
         print(f"  ✓ source_sentence audio")
-        generate_audio(entry["target_sentence"], audio_dir / f"{lemma}_target_sentence.mp3", lang="en")
+        generate_audio(entry["target_sentence"], audio_dir / f"{lemma}_target_sentence.mp3", lang="en", silent=1000)
         print(f"  ✓ target_sentence audio")
 
         _concatenate_audios([audio_dir / f"{lemma}_source_sentence.mp3", audio_dir / f"{lemma}_target_sentence.mp3"], audio_dir, f"{lemma}_sentence")
         print(f"  ✓ sentence_combined_audio")
 
-    print(f"[done] Re-run the video pipeline with reuse_audio=True to rebuild the video.")
+    print(f"[done] Re-run: python pipeline.py --collection {collection} --stage video")
 
 
 def list_lemmas(collection: str) -> None:

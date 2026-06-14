@@ -69,6 +69,6 @@ print(f"[test] Building video for {len(vocabulary)} words from '{collection}' ({
 video_path = create_vocabulary_video(
     vocabulary, collection,
     source_lang="de", target_lang="en",
-    tts_provider=None, reuse_audio=reuse_audio,
+    tts_provider=None,
 )
 print(f"[test] Done: {video_path}")

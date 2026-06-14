@@ -85,7 +85,9 @@ def _combine_and_export(temp_files: list, filename, silent: int, normalize: bool
     for i, path in enumerate(temp_files):
         audio = AudioSegment.from_file(path)
         if normalize and len(audio) > 200:
-            audio = audio.normalize().fade_in(25).fade_out(25)
+            audio = audio.normalize()
+        if len(audio) > 200:
+            audio = audio.fade_in(25).fade_out(25)
         combined += audio
         if i < len(temp_files) - 1:
             combined += AudioSegment.silent(100)
