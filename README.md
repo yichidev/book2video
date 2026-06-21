@@ -73,7 +73,7 @@ TTS_PROVIDER=openai    # Optional: "openai" (default) or "gtts" (free, lower qua
 
 ## Vocab mode
 
-Extracts vocabulary words from a PDF textbook (one alphabet letter at a time), translates them, and produces an Anki deck, Quizlet file, and bilingual flashcard video.
+Extracts vocabulary words from a PDF textbook (one or more alphabet letters at a time), translates them, and produces an Anki deck, Quizlet file, and bilingual flashcard video.
 
 **Pipeline:** PDF → extract words → translate → generate audio → export to video / Anki / Quizlet
 
@@ -135,6 +135,16 @@ Your choice [1]:
 ```
 
 Split naming: `A1_F_1`, `A1_F_2`, … Each chunk becomes its own MongoDB collection and JSON file. Both chunks land in the same Anki deck (`Goethe A1 Wordlist::F`).
+
+### Combined collections (sparse letters)
+
+When a letter has too few words to justify its own video, pass multiple letters comma-separated:
+
+```bash
+python pipeline.py --collection A1_H_I --pdf input/books/A1.pdf --alphabet H,I --stage extract
+```
+
+The extractor filters lines and extracts vocabulary for all listed letters together. Collection naming (`A1_H_I`) is free-form — choose whatever makes the output folder meaningful.
 
 ### Export formats
 
@@ -203,7 +213,7 @@ python pipeline.py --collection A1_A_1 --stage describe
 |----------|-------------|--------------|
 | `--collection` | Collection name, e.g. `A1_A_1` | All stages |
 | `--pdf` | Path to the PDF file | `extract` |
-| `--alphabet` | Letter to extract, e.g. `A` | `extract` |
+| `--alphabet` | Letter(s) to extract, e.g. `A` or `H,I` for combined collections | `extract` |
 | `--stage` | `extract`, `translate`, `audio`, `video`, `audio-and-video`, `anki`, `quizlet`, `describe`, `delete` | Optional (omit to run all) |
 | `--tts` | `openai` (default) or `gtts` | Optional |
 | `--anki-connect` | Push deck to Anki via AnkiConnect | `anki` |

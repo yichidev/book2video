@@ -212,21 +212,20 @@ def push_to_ankiconnect(
                 "tags": [collection],
             })
 
-        # 4. Add notes
+        # 4. Clear existing notes so re-runs replace rather than skip
+        find_result = _ankiconnect("findNotes", query=f"deck:\"{deck_name}\"")
+        existing_ids = find_result.get("result") or []
+        if existing_ids:
+            _ankiconnect("deleteNotes", notes=existing_ids)
+            print(f"[anki] Cleared {len(existing_ids)} existing notes from '{deck_name}'")
+
+        # 5. Add notes
         result = _ankiconnect("addNotes", notes=notes)
         error = result.get("error")
-        # AnkiConnect returns per-note duplicate messages as a list in "error"
-        # rather than in "result" — treat that as a soft skip, not a hard failure
-        if error and not isinstance(error, list):
+        if error:
             print(f"[anki] AnkiConnect error (addNotes): {error}")
             return False
-        results = result.get("result") or []
-        added = sum(1 for n in results if isinstance(n, int))
-        skipped = len(notes) - added
-        msg = f"[anki] Pushed {added}/{len(notes)} cards to '{deck_name}' via AnkiConnect"
-        if skipped:
-            msg += f" ({skipped} skipped — already exist)"
-        print(msg)
+        print(f"[anki] Pushed {len(notes)} cards to '{deck_name}' via AnkiConnect")
         return True
 
     except Exception as e:

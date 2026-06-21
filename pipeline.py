@@ -12,6 +12,9 @@ VOCAB MODE (default):
   python pipeline.py --collection A1_A_1 --stage quizlet
   python pipeline.py --collection A1_A_1 --stage describe
 
+  # Combined letters (for sparse letters with few words)
+  python pipeline.py --collection A1_H_I --pdf input/books/A1.pdf --alphabet H,I --stage extract
+
   # Different target language
   python pipeline.py --collection B1_A --pdf input/books/B1.pdf --alphabet A --source-lang de --target-lang zh --stage extract
 
@@ -185,6 +188,16 @@ def run_extract(collection: str, pdf: str, alphabet: str, book: str, source_lang
         print(f"[next] Then run: python pipeline.py --collection {chunk_name} --stage translate")
 
 
+def _sanity_check_translations(translated: dict) -> None:
+    missing = [lemma for lemma, v in translated.items() if not v.get("target_word", "").strip()]
+    if missing:
+        print(f"\n[sanity] {len(missing)} entries missing translation:")
+        for lemma in sorted(missing):
+            print(f"  - {lemma}")
+    else:
+        print(f"[sanity] All {len(translated)} entries have translations.")
+
+
 def run_translate(collection: str, source_lang: str, target_lang: str) -> None:
     _sync_from_json(collection)
     entries = get_collection(collection)
@@ -214,6 +227,7 @@ def run_translate(collection: str, source_lang: str, target_lang: str) -> None:
     save_collection(collection, translated, book=book, source_lang=source_lang, target_lang=target_lang)
     print(f"[translate] Updated {len(translated)} entries in MongoDB")
     _write_json(collection, get_collection(collection))
+    _sanity_check_translations(translated)
     print(f"\n[next] Review the translations in output/{collection}/text/{collection}_de_en.json")
     print(f"[next] Then run: python pipeline.py --collection {collection} --stage audio")
     print(f"[next]      then: python pipeline.py --collection {collection} --stage video")
@@ -564,7 +578,8 @@ def main():
             "  python pipeline.py --collection A1_A_1 --stage video\n"
             "  python pipeline.py --collection A1_A_1 --stage anki [--anki-connect]\n"
             "  python pipeline.py --collection A1_A_1 --stage quizlet\n"
-            "  python pipeline.py --collection A1_A_1 --stage describe\n\n"
+            "  python pipeline.py --collection A1_A_1 --stage describe\n"
+            "  python pipeline.py --collection A1_H_I --pdf A1.pdf --alphabet H,I --stage extract  # combine sparse letters\n\n"
             "EBOOK MODE:\n"
             "  python pipeline.py --mode ebook --book mynovel --pdf novel.pdf --stage extract\n"
             "  python pipeline.py --mode ebook --book mynovel --stage translate\n"
@@ -587,7 +602,7 @@ def main():
         "Omit to run the full pipeline end-to-end."
     ))
     parser.add_argument("--pdf", help="Path to the source PDF file (required for extract stage)")
-    parser.add_argument("--alphabet", help="[vocab] Single letter to extract from the wordlist PDF, e.g. A, B, F")
+    parser.add_argument("--alphabet", help="[vocab] Letter(s) to extract from the wordlist PDF, e.g. A or H,I for combined collections")
     parser.add_argument("--source-lang", default=None, help="Source language code, e.g. de, fr, es (default: de)")
     parser.add_argument("--target-lang", default=None, help="Target language code, e.g. en, zh, ja (default: en)")
     parser.add_argument("--tts", choices=["openai", "gtts"], help="TTS provider: 'openai' (higher quality) or 'gtts' (free). Default from config.")

@@ -1,4 +1,5 @@
 import ast
+import json
 import pdfplumber
 from openai import OpenAI
 import config
@@ -13,78 +14,116 @@ def _openai() -> OpenAI:
     return _client
 
 
-
-def _extract_filtered_text(pdf_path: str, alphabet: str) -> str:
-    """Extract full PDF text locally, return only lines containing words starting with alphabet."""
+def file_search_local(pdf_path: str, alphabet: str, model: str = "gpt-5.2") -> list:
+    """pdfplumber text extraction + LLM vocabulary extraction."""
     with pdfplumber.open(pdf_path) as pdf:
         full_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
-    letter = alphabet.lower()
+    letters = [l.strip().lower() for l in alphabet.split(",")]
     relevant_lines = [
         line for line in full_text.splitlines()
-        if any(word.lstrip("(").lower().startswith(letter) for word in line.split())
+        if any(
+            word.lstrip("(").lower().startswith(l)
+            for word in line.split()
+            for l in letters
+        )
     ]
-    return "\n".join(relevant_lines)
+    filtered_text = "\n".join(relevant_lines)
 
+    system_prompt = (
+        "<extraction_spec>\n"
+        "You will extract German vocabulary entries from a language textbook page into JSON.\n\n"
+        "Always follow this schema exactly (no extra fields):\n"
+        "{\n"
+        '  "entries": [\n'
+        "    {\n"
+        '      "lemma":   string,           // required — canonical form: noun with article, verb as infinitive\n'
+        '      "plural":  string | null,    // plural without article for countable nouns; null otherwise\n'
+        '      "example": string | null     // complete example sentence from the source text; null if not found\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "Rules:\n"
+        "- Extract ALL parts of speech: nouns, verbs, adjectives, adverbs, prepositions, conjunctions\n"
+        "- Nouns: ALWAYS prefix lemma with the correct German article (der/die/das)\n"
+        "- Verbs: ALWAYS lowercase infinitive form. If both a verb and its related noun appear, include BOTH as separate entries\n"
+        "- Reflexive verbs: prefix lemma with (sich)\n"
+        "- Skip proper nouns (names, cities, countries), section headings, and single-letter fragments\n"
+        "- If a field is not present in the source, set it to null — do not guess or invent\n"
+        "- Before returning, quickly re-scan the source text for any missed vocabulary words and correct omissions\n"
+        "</extraction_spec>"
+    )
+    letter_display = ", ".join(l.upper() for l in letters)
+    user_prompt = (
+        f"Extract every German vocabulary word starting with any of the letters '{letter_display}' from the text below.\n\n"
+        f"Text:\n{filtered_text}"
+    )
 
-def file_search_local(pdf_path: str, alphabet: str) -> list:
-    """Method A: pdfplumber local extraction + GPT-4.1 Chat API structuring."""
-    filtered_text = _extract_filtered_text(pdf_path, alphabet)
     response = _openai().chat.completions.create(
-        model="gpt-4.1", temperature=0, max_tokens=16384,
+        model=model,
+        max_completion_tokens=16384,
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "vocabulary_extraction",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "entries": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "lemma":   {"type": "string"},
+                                    "plural":  {"type": ["string", "null"]},
+                                    "example": {"type": ["string", "null"]},
+                                },
+                                "required": ["lemma", "plural", "example"],
+                                "additionalProperties": False,
+                            },
+                        }
+                    },
+                    "required": ["entries"],
+                    "additionalProperties": False,
+                },
+            },
+        },
         messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a German vocabulary extractor. "
-                    "Extract ALL parts of speech — nouns, verbs, adjectives, adverbs, prepositions, "
-                    "conjunctions, and other function words. Do not skip non-nouns. "
-                    "CRITICAL: (1) Every noun MUST be prefixed with its correct German article "
-                    "(der/die/das). Never output a noun without its article. "
-                    "(2) Verbs MUST be lowercase infinitive form. Never capitalise a verb. "
-                    "Output only a Python list, no markdown, no explanation."
-                ),
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"Extract every German word starting with the letter '{alphabet}' from the text below.\n\n"
-                    "Output format — a Python list of 3-item lists:\n"
-                    "  [lemma, plural_or_empty_string, example_sentence_or_empty_string]\n\n"
-                    "Rules per part of speech:\n"
-                    "  - Nouns: ALWAYS write 'der/die/das Lemma' — article is REQUIRED.\n"
-                    "    Example: 'die Familie', 'der Fehler', 'das Foto'\n"
-                    "  - Verbs: ALWAYS lowercase infinitive. Example: 'fahren', 'füllen', 'finden'\n"
-                    "  - Reflexive verbs: prefix '(sich) '. Example: '(sich) freuen'\n"
-                    "  - Adjectives / adverbs / prepositions / conjunctions: lowercase base form\n"
-                    "  - Field 2: plural without article for nouns; '' for everything else\n"
-                    "  - Field 3: example sentence from the text if present; '' otherwise\n"
-                    "  - Do NOT invent words not in the text\n\n"
-                    "Example output:\n"
-                    "[['der Fehler', 'Fehler', 'Diesen Fehler mache ich immer.'],\n"
-                    " ['die Familie', 'Familien', 'Meine Familie lebt in Spanien.'],\n"
-                    " ['falsch', '', 'Das ist falsch.'],\n"
-                    " ['fahren', '', 'Fahren Sie bitte nicht so schnell.'],\n"
-                    " ['für', '', 'Das ist für Sie.']]\n\n"
-                    f"Text:\n{filtered_text}"
-                ),
-            },
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": user_prompt},
         ],
     )
-    return ast.literal_eval(response.choices[0].message.content)
+    data = json.loads(response.choices[0].message.content)
+
+    return [[e["lemma"], e["plural"] or "", e["example"] or ""] for e in data["entries"]]
 
 
 def file_search_merged(pdf_path: str, alphabet: str) -> list:
-    """Extract vocabulary using Method A (pdfplumber + GPT-4.1) with sanity checks.
-    Method B (Assistants RAG) was evaluated but dropped — it introduced conjugated forms,
-    proper nouns, and garbled entries that prompts could not reliably suppress.
-    """
+    """Extract vocabulary using gpt-5.2 + o3 and merge results for comprehensive coverage."""
     def _norm(lemma: str) -> str:
         for art in ("der/die ", "der ", "die ", "das "):
             if lemma.lower().startswith(art):
                 lemma = lemma[len(art):]
         return lemma.lstrip("(").strip().lower()
 
-    entries = file_search_local(pdf_path, alphabet)
+    entries_a = file_search_local(pdf_path, alphabet, model="gpt-5.2")
+    print(f"\n[gpt-5.2] {len(entries_a)} entries:")
+    for e in sorted(entries_a, key=lambda x: x[0].lower()):
+        print(f"  {e[0]}" + (f", {e[1]}" if e[1] else "") + (f" — {e[2]}" if e[2] else ""))
+
+    entries_b = file_search_local(pdf_path, alphabet, model="o3")
+    print(f"\n[o3] {len(entries_b)} entries:")
+    for e in sorted(entries_b, key=lambda x: x[0].lower()):
+        print(f"  {e[0]}" + (f", {e[1]}" if e[1] else "") + (f" — {e[2]}" if e[2] else ""))
+
+    only_a = {e[0] for e in entries_a} - {e[0] for e in entries_b}
+    only_b = {e[0] for e in entries_b} - {e[0] for e in entries_a}
+    if only_a:
+        print(f"\n[only in gpt-5.2]: {', '.join(sorted(only_a))}")
+    if only_b:
+        print(f"[only in o3]:       {', '.join(sorted(only_b))}")
+
+    entries = entries_a + entries_b
 
     # Deduplicate by normalised key, preferring entries with an article
     def _has_article(lemma: str) -> bool:
@@ -100,19 +139,24 @@ def file_search_merged(pdf_path: str, alphabet: str) -> list:
         else:
             existing = merged[key]
             if _has_article(entry[0]) and not _has_article(existing[0]):
-                merged[key] = entry  # upgrade to version with article
+                merged[key] = entry
             elif not _has_article(entry[0]) and _has_article(existing[0]):
                 pass
             elif sum(bool(f) for f in entry) > sum(bool(f) for f in existing):
                 merged[key] = entry
 
-    # Letter filter: remove false positives whose lemma doesn't start with the target letter
-    letter = alphabet.lower()
-    merged = {k: v for k, v in merged.items() if k.startswith(letter)}
+    # Letter filter: remove false positives whose lemma doesn't start with any target letter
+    letters = [l.strip().lower() for l in alphabet.split(",")]
+    merged = {k: v for k, v in merged.items() if any(k.startswith(l) for l in letters)}
 
     # Plural dedup: remove standalone plural entries already captured by their base noun
     known_plurals = {_norm(v[1]) for v in merged.values() if v[1]}
     merged = {k: v for k, v in merged.items() if k not in known_plurals}
+
+    print(f"\n[merged] {len(merged)} entries after dedup:")
+    for k in sorted(merged):
+        e = merged[k]
+        print(f"  {e[0]}" + (f", {e[1]}" if e[1] else "") + (f" — {e[2]}" if e[2] else ""))
 
     return _cleanup_entries(list(merged.values()))
 
@@ -121,7 +165,7 @@ def _cleanup_entries(entries: list) -> list:
     """Second LLM pass: fix missing articles, lowercase verbs, strip non-sentence examples."""
     payload = repr(entries)
     response = _openai().responses.create(
-        model="gpt-5-mini",
+        model="gpt-4.1",
         instructions=(
             "You are a German vocabulary quality checker. "
             "You will receive a Python list of 3-item lists: [lemma, plural, example_sentence]. "
@@ -162,15 +206,12 @@ def parse_to_vocabulary(entries: list) -> dict:
         lemma = lemma.rstrip("-").strip()
         parts = lemma.split(" ")
         if parts[0] in ("der", "die", "das", "der/die"):
-            # Noun with article: key = bare noun, source_word = "die Familie, Familien"
             key = parts[1] if len(parts) >= 2 else parts[0]
             german_word = f"{lemma}, {lemma_plural}" if lemma_plural else lemma
         elif len(parts) == 1 and lemma and lemma[0].isupper() and lemma_plural:
-            # Noun missing article (LLM forgot it): key = bare noun, still include plural
             key = lemma
             german_word = f"{lemma}, {lemma_plural}"
         else:
-            # Verb / adjective / other
             key = lemma
             german_word = lemma
         output[key] = {"source_word": german_word, "source_sentence": example}

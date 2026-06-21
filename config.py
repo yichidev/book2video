@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # API keys
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-DEEPL_API_KEY = os.environ["DEEPL_API_KEY"]
+OPENAI_API_KEY     = os.environ["OPENAI_API_KEY"]
+DEEPL_API_KEY      = os.environ["DEEPL_API_KEY"]
 MONGODB_URI = os.getenv("MONGODB_URI")  # optional until Atlas is configured
 
 # Video

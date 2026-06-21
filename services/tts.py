@@ -1,4 +1,5 @@
 import os
+import time
 import httpx
 from pathlib import Path
 from gtts import gTTS
@@ -47,22 +48,30 @@ def _generate_openai(segments: list, filename, lang: str, silent: int) -> None:
 
     for i, segment in enumerate(segments):
         temp_path = f"temp_tts_{i}_{Path(str(filename)).stem}.mp3"
-        response = httpx.post(
-            "https://api.openai.com/v1/audio/speech",
-            headers={
-                "Authorization": f"Bearer {config.OPENAI_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "gpt-4o-mini-tts",
-                "voice": voice,
-                "input": segment,
-                "instructions": _OPENAI_INSTRUCTIONS.get(lang, ""),
-                "response_format": "mp3",
-            },
-            timeout=60,
-        )
-        response.raise_for_status()
+        for attempt in range(3):
+            try:
+                response = httpx.post(
+                    "https://api.openai.com/v1/audio/speech",
+                    headers={
+                        "Authorization": f"Bearer {config.OPENAI_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "gpt-4o-mini-tts",
+                        "voice": voice,
+                        "input": segment,
+                        "instructions": _OPENAI_INSTRUCTIONS.get(lang, ""),
+                        "response_format": "mp3",
+                    },
+                    timeout=60,
+                )
+                response.raise_for_status()
+                break
+            except (httpx.TimeoutException, httpx.HTTPStatusError) as e:
+                if attempt == 2:
+                    raise
+                print(f"  [retry {attempt + 1}/2] {e}")
+                time.sleep(3)
         with open(temp_path, "wb") as f:
             f.write(response.content)
         temp_files.append(temp_path)

@@ -153,20 +153,26 @@ def _create_summary_clip(vocabulary: list[dict], duration: float):
         if e.get("target_word", "").strip()
     ]
     font_size = 40
+    min_font_size = 28
+    font_step = 4
     bg = ImageClip(str(config.BACKGROUND_IMAGE)).set_duration(duration)
 
     txt_full = TextClip("\n".join(pairs), fontsize=font_size, font="Amiri-regular",
                         color="black", size=(w - 100, None), method="caption")
 
     if txt_full.h > h - 100:
-        # 2-column layout — centered as a unit
+        # 2-column layout — reduce font size until it fits
         mid = len(pairs) // 2
         col_w = (w - 140) // 2  # 140 = 2×50 padding + 40 gap
-        col1 = TextClip("\n".join(pairs[:mid]), fontsize=font_size, font="Amiri-regular",
-                        color="black", size=(col_w, None), method="caption")
-        col2 = TextClip("\n".join(pairs[mid:]), fontsize=font_size, font="Amiri-regular",
-                        color="black", size=(col_w, None), method="caption")
-        gap = max(30, w - col1.w - col2.w - 100)  # at least 40px, shrinks padding before gap
+        while font_size >= min_font_size:
+            col1 = TextClip("\n".join(pairs[:mid]), fontsize=font_size, font="Amiri-regular",
+                            color="black", size=(col_w, None), method="caption")
+            col2 = TextClip("\n".join(pairs[mid:]), fontsize=font_size, font="Amiri-regular",
+                            color="black", size=(col_w, None), method="caption")
+            if max(col1.h, col2.h) <= h - 100 or font_size == min_font_size:
+                break
+            font_size -= font_step
+        gap = max(30, w - col1.w - col2.w - 100)
         total_w = col1.w + gap + col2.w
         x1 = max(50, (w - total_w) // 2)
         x2 = x1 + col1.w + gap
