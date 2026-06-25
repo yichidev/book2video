@@ -47,6 +47,10 @@ from storage.mongodb import (
     save_ebook_sentences, get_ebook_sentences, update_ebook_translations, mark_ebook_audio_generated,
 )
 
+import re as _re
+def _safe_filename(lemma: str) -> str:
+    return _re.sub(r'[/\\:*?"<>|]', "-", lemma)
+
 
 def _split_evenly(items: list, max_size: int = 30, min_last: int = 15) -> list[list]:
     total = len(items)
@@ -265,7 +269,7 @@ def run_audio(collection: str, tts_provider: str | None, source_lang: str, targe
 
     vocabulary = [
         {
-            "file_name": e["lemma"],
+            "file_name": _safe_filename(e["lemma"]),
             "source_word": e["source_word"],
             "target_word": e.get("target_word", ""),
             "source_sentence": e.get("source_sentence", ""),
@@ -303,7 +307,7 @@ def run_video(collection: str, tts_provider: str | None, source_lang: str, targe
 
     vocabulary = [
         {
-            "file_name": e["lemma"],
+            "file_name": _safe_filename(e["lemma"]),
             "source_word": e["source_word"],
             "target_word": e.get("target_word", ""),
             "source_sentence": e.get("source_sentence", ""),
@@ -341,7 +345,7 @@ def run_anki(collection: str, tts_provider: str | None, anki_connect: bool, sour
 
     vocabulary = [
         {
-            "file_name": e["lemma"],
+            "file_name": _safe_filename(e["lemma"]),
             "source_word": e["source_word"],
             "target_word": e.get("target_word", ""),
             "source_sentence": e.get("source_sentence", ""),
@@ -408,7 +412,7 @@ def run_quizlet(collection: str) -> None:
 
     vocabulary = [
         {
-            "file_name": e["lemma"],
+            "file_name": _safe_filename(e["lemma"]),
             "source_word": e["source_word"],
             "target_word": e.get("target_word", ""),
         }
