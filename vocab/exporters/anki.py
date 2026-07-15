@@ -59,15 +59,13 @@ def _stable_id(name: str) -> int:
 
 
 def _default_deck_name(collection: str) -> str:
-    # e.g. "A1_F_1" → "Goethe A1 Wordlist::F"
-    # e.g. "A1_F"   → "Goethe A1 Wordlist::F"
-    # Trailing pure-digit parts (chunk indices) are dropped so A1_A_1
-    # and A1_A_2 both land in the same deck.
+    # e.g. "A1_F_1"  → "Goethe A1 Wordlist::F"   (digit chunk index dropped)
+    # e.g. "A1_J_I"  → "Goethe A1 Wordlist::J_I"  (multi-letter parts joined with _ not ::)
     parts = collection.split("_")
     book = parts[0]  # e.g. "A1"
     rest = [p for p in parts[1:] if not p.isdigit()]
     base = f"Goethe {book} Wordlist"
-    return "::".join([base] + rest) if rest else base
+    return f"{base}::{'_'.join(rest)}" if rest else base
 
 
 def create_anki_deck(

@@ -141,7 +141,7 @@ Split naming: `A1_F_1`, `A1_F_2`, … Each chunk becomes its own MongoDB collect
 When a letter has too few words to justify its own video, pass multiple letters comma-separated:
 
 ```bash
-python pipeline.py --collection A1_H_I --pdf input/books/A1.pdf --alphabet H,I --stage extract
+python pipeline.py --collection A1_J_I --pdf input/books/A1.pdf --alphabet J,I --stage extract
 ```
 
 The extractor filters lines and extracts vocabulary for all listed letters together. Collection naming (`A1_H_I`) is free-form — choose whatever makes the output folder meaningful.

@@ -57,6 +57,7 @@ def regen_audio(collection: str, lemma: str) -> None:
         _concatenate_audios([audio_dir / f"{lemma}_source_sentence.mp3", audio_dir / f"{lemma}_target_sentence.mp3"], audio_dir, f"{lemma}_sentence")
         print(f"  ✓ sentence_combined_audio")
 
+    print(f"[done] Files saved to: {audio_dir.resolve()}/")
     print(f"[done] Re-run: python pipeline.py --collection {collection} --stage video")
 
 
