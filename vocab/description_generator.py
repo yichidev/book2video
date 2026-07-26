@@ -103,7 +103,7 @@ def generate_description(
 
     # Header
     lines = [
-        f"Goethe {src_name} vocabulary for {book}{letter_part}",
+        f"Goethe {src_name} vocabulary {book}{letter_part}",
         "",
     ]
 
