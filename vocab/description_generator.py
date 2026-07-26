@@ -3,7 +3,7 @@ Generate a YouTube/social media description for a vocabulary video.
 
 Output (description.txt, written next to summary.txt):
 
-    Memorize German vocabulary for A1 (with English translation)
+    Memorize German vocabulary for A1 (with English)
 
     Vocabulary comes from the A1 DEUTSCH WORTLISTE:
     https://...
@@ -99,7 +99,7 @@ def generate_description(
             first_source = first_source[len(art):]
             break
     letter = first_source[0].upper() if first_source else ""
-    letter_part = f" (letter {letter}; with {tgt_name} translation)" if letter else f" (with {tgt_name} translation)"
+    letter_part = f" (letter {letter}; with {tgt_name})" if letter else f" (with {tgt_name})"
 
     # Header
     lines = [
