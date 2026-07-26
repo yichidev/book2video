@@ -47,7 +47,7 @@ def _generate_openai(segments: list, filename, lang: str, silent: int) -> None:
     temp_files = []
 
     for i, segment in enumerate(segments):
-        temp_path = f"temp_tts_{i}_{Path(str(filename)).stem}.mp3"
+        temp_path = Path(str(filename)).parent / f"temp_tts_{i}_{Path(str(filename)).stem}.mp3"
         for attempt in range(3):
             try:
                 response = httpx.post(
@@ -66,8 +66,10 @@ def _generate_openai(segments: list, filename, lang: str, silent: int) -> None:
                     timeout=60,
                 )
                 response.raise_for_status()
+                if len(response.content) < 1000:
+                    raise ValueError(f"TTS response too small ({len(response.content)} bytes) for segment: {segment!r}")
                 break
-            except (httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.TransportError, ValueError) as e:
                 if attempt == 2:
                     raise
                 print(f"  [retry {attempt + 1}/2] {e}")
@@ -93,9 +95,9 @@ def _combine_and_export(temp_files: list, filename, silent: int, normalize: bool
     combined = AudioSegment.silent(0)
     for i, path in enumerate(temp_files):
         audio = AudioSegment.from_file(path)
-        if normalize and len(audio) > 200:
+        if normalize and len(audio) > 0:
             audio = audio.normalize()
-        if len(audio) > 200:
+        if len(audio) > 50:
             audio = audio.fade_in(25).fade_out(25)
         combined += audio
         if i < len(temp_files) - 1:

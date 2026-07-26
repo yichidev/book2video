@@ -49,11 +49,8 @@ def _resize_image_to_fit(img_path, img_dir, max_width, max_height):
 
 
 def _wrap_text(text: str, width: int, font_size: int):
-    sentences = re.split(r"(?<=\.)\s", text)
-    wrapped = []
-    for sentence in sentences:
-        max_chars = (width - 100) // (font_size // 2)
-        wrapped.extend(textwrap.wrap(sentence, max_chars))
+    max_chars = (width - 100) // (font_size // 2)
+    wrapped = textwrap.wrap(text, max_chars)
     is_cut = len(wrapped) > 1
     return is_cut, "\n".join(wrapped)
 
